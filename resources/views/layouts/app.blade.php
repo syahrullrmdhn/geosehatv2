@@ -7,8 +7,8 @@
     <title>@yield('title', 'Dashboard GeoSehat')</title>
     <meta name="description" content="@yield('description', 'Pemantauan Kesehatan Geospasial')">
 
-    {{-- Mengganti helper mix() dengan directive @vite --}}
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Load CSS dari Laravel Mix --}}
+    <link rel="stylesheet" href="{{ mix('css/app.css') }}">
 
     {{-- Stack untuk styles tambahan per halaman --}}
     @stack('styles')
@@ -46,7 +46,8 @@
         @yield('content')
     </main>
 
-    {{-- Stack untuk scripts tambahan per halaman --}}
+    {{-- Load JS dari Laravel Mix --}}
+    <script src="{{ mix('js/app.js') }}" defer></script>
     @stack('scripts')
 </body>
 </html>
