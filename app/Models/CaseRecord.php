@@ -1,27 +1,31 @@
 <?php
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-class CaseRecord extends Model
+class CaseRecord extends LoggableModel
 {
     protected $table = 'case_records';
+
     protected $fillable = [
-        'patient_name',
-        'disease_id',
-        'region_id',
         'date_reported',
+        'region_id',
+        'disease_id',
+        'count',
         'latitude',
         'longitude',
     ];
 
-    public function disease()
-    {
-        return $this->belongsTo(Disease::class);
-    }
+    protected $casts = [
+        'date_reported' => 'date',
+    ];
+
+    protected static $logName = 'kasus';
 
     public function region()
     {
         return $this->belongsTo(Region::class);
+    }
+    public function disease()
+    {
+        return $this->belongsTo(Disease::class);
     }
 }

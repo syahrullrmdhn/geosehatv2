@@ -2,95 +2,95 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CaseRecord;
+use App\Models\HealthWorker;
+use App\Models\Disease;
+use App\Models\Region;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-   public function index()
-{
-    $stats = [
-        [
-            'icon' => 'o-exclamation-triangle',
-            'color' => 'text-red-500',
-            'value' => 1234,
-            'label' => 'Total Kasus Aktif',
-            'change' => '+12%',
-            'delta_color' => 'text-green-600'
-        ],
-        [
-            'icon' => 'o-user-group',
-            'color' => 'text-blue-500',
-            'value' => 456,
-            'label' => 'Total Tenaga Kesehatan',
-            'change' => '+5%',
-            'delta_color' => 'text-green-600'
-        ],
-        [
-            'icon' => 'o-clock',
-            'color' => 'text-yellow-500',
-            'value' => 78,
-            'label' => 'Kasus Hari Ini',
-            'change' => '-3%',
-            'delta_color' => 'text-red-600'
-        ],
-        [
-            'icon' => 'o-check-circle',
-            'color' => 'text-green-500',
-            'value' => '89%',
-            'label' => 'Tingkat Penanganan',
-            'change' => '+2%',
-            'delta_color' => 'text-green-600'
-        ],
-    ];
+    public function index()
+    {
+        // Statistik utama
+        $totalCases    = CaseRecord::sum('count');
+        $totalHW       = HealthWorker::count();
+        $todayCases    = CaseRecord::whereDate('date_reported', now()->toDateString())->sum('count');
+        $totalDiseases = Disease::count();
 
-    $zones = [
-        ['label' => 'Zona Merah (> 100 kasus)', 'color' => 'bg-red-500'],
-        ['label' => 'Zona Kuning (50-100 kasus)', 'color' => 'bg-yellow-400'],
-        ['label' => 'Zona Hijau (≤ 50 kasus)', 'color' => 'bg-green-500'],
-    ];
+        $stats = [
+            [
+                'icon'  => 'o-exclamation-triangle',
+                'color' => 'red',
+                'value' => $totalCases,
+                'label' => 'Total Kasus',
+            ],
+            [
+                'icon'  => 'o-user-group',
+                'color' => 'blue',
+                'value' => $totalHW,
+                'label' => 'Tenaga Kesehatan',
+            ],
+            [
+                'icon'  => 'o-clock',
+                'color' => 'yellow',
+                'value' => $todayCases,
+                'label' => 'Kasus Hari Ini',
+            ],
+            [
+                'icon'  => 'o-book-open',
+                'color' => 'green',
+                'value' => $totalDiseases,
+                'label' => 'Total Penyakit',
+            ],
+        ];
 
-    $performance = [
-        'Ditangani' => 60,
-        'Proses'    => 30,
-        'Menunggu'  => 10,
-    ];
+        // Data peta
+        $mapData = CaseRecord::with('region')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->get()
+            ->map(fn($c) => [
+                'lat'    => $c->latitude,
+                'lng'    => $c->longitude,
+                'count'  => $c->count,
+                'region' => $c->region->name,
+            ]);
 
-    $latestCases = [
-        [
-            'id' => 'KS-2024-001',
-            'region' => 'Jakarta Selatan',
-            'hw' => 'dr. Ahmad Yani',
-            'status' => 'ditangani',
-            'color' => 'green',
-            'date' => '24 Jan 2024'
-        ],
-        [
-            'id' => 'KS-2024-002',
-            'region' => 'Bandung',
-            'hw' => 'dr. Ratna Sari',
-            'status' => 'proses',
-            'color' => 'yellow',
-            'date' => '24 Jan 2024'
-        ],
-        [
-            'id' => 'KS-2024-003',
-            'region' => 'Surabaya',
-            'hw' => 'dr. Budi Santoso',
-            'status' => 'menunggu',
-            'color' => 'red',
-            'date' => '23 Jan 2024'
-        ],
-        [
-            'id' => 'KS-2024-004',
-            'region' => 'Medan',
-            'hw' => 'dr. Lisa Permata',
-            'status' => 'ditangani',
-            'color' => 'green',
-            'date' => '23 Jan 2024'
-        ],
-    ];
+        // Distribusi penyakit
+        $diseaseDistribution = Disease::leftJoin('case_records', 'diseases.id', '=', 'case_records.disease_id')
+            ->select('diseases.name', DB::raw('COALESCE(SUM(case_records.count),0) as count'))
+            ->groupBy('diseases.id', 'diseases.name')
+            ->get()
+            ->map(function ($row, $idx) {
+                $colors = ['bg-green-500','bg-yellow-400','bg-red-500','bg-blue-500','bg-pink-500'];
+                $row['color'] = $colors[$idx % count($colors)];
+                return $row;
+            });
 
-    return view('dashboard.index', compact('stats', 'zones', 'performance', 'latestCases'));
-}
+        // Distribusi per wilayah
+        $regionDistribution = Region::leftJoin('case_records', 'regions.id', '=', 'case_records.region_id')
+            ->select('regions.name', DB::raw('COALESCE(SUM(case_records.count),0) as count'))
+            ->groupBy('regions.id', 'regions.name')
+            ->orderByDesc('count')
+            ->get();
 
+        // 10 kasus terbaru
+        $latestCases = CaseRecord::with(['region','disease'])
+            ->latest('date_reported')
+            ->limit(10)
+            ->get()
+            ->map(fn($c) => [
+                'id'      => $c->id,
+                'region'  => $c->region->name,
+                'disease' => $c->disease->name,
+                'count'   => $c->count,
+                'date'    => $c->date_reported->format('d M Y'),
+            ]);
+
+        return view('dashboard.index', compact(
+            'stats','mapData','latestCases','diseaseDistribution','regionDistribution'
+        ));
+    }
 }

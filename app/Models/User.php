@@ -1,42 +1,29 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use Notifiable;
+    // Tidak perlu LogsActivity kecuali ingin melog juga perubahan user
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int,string>
-     */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'name','email','password',
+        'two_factor_enabled',
+        'two_factor_chat_id',
+        'two_factor_code',
+        'two_factor_expires_at',
     ];
 
-    /**
-     * The attributes that should be hidden for arrays / JSON.
-     *
-     * @var array<int,string>
-     */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password','remember_token','two_factor_code',
     ];
 
-    /**
-     * The attribute type casts.
-     *
-     * @var array<string,string>
-     */
     protected $casts = [
-        'email_verified_at' => 'datetime',
+        'email_verified_at'     => 'datetime',
+        'two_factor_enabled'    => 'boolean',
+        'two_factor_expires_at' => 'datetime',
     ];
 }

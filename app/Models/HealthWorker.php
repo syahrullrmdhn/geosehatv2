@@ -1,12 +1,15 @@
 <?php
-
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-class HealthWorker extends Model
+class HealthWorker extends LoggableModel
 {
     protected $fillable = [
-        'name', 'profession', 'region', 'phone'
+        'name', 'profession', 'region_id', 'phone',
     ];
+    protected static $logName = 'tenaga_kesehatan';
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
+    }
 }

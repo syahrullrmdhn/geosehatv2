@@ -1,23 +1,17 @@
 <?php
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-class AlertThreshold extends Model
+class AlertThreshold extends LoggableModel
 {
-    protected $fillable = [
-        'disease_id',
-        'region_id',
-        'threshold',
-    ];
-
-    public function disease()
-    {
-        return $this->belongsTo(Disease::class);
-    }
+    protected $fillable = ['region_id', 'disease_id', 'threshold'];
+    protected static $logName = 'threshold';
 
     public function region()
     {
         return $this->belongsTo(Region::class);
+    }
+    public function disease()
+    {
+        return $this->belongsTo(Disease::class);
     }
 }

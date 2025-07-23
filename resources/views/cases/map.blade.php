@@ -1,103 +1,167 @@
 @extends('layouts.app')
-@section('title', 'Peta Kasus')
+@section('title', 'Peta Sebaran Kasus')
 
 @push('styles')
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+/>
 <style>
-    #mapKasus {
-        min-height: 420px;
-        height: 48vh;
-        width: 100%;
-        border-radius: 0.75rem;
-        border: 1px solid #e5e7eb; /* gray-200 */
-        margin-bottom: 1.5rem;
-        z-index: 0;
-    }
-    .leaflet-control {
-        font-family: inherit;
-    }
-    .leaflet-container {
-        font-family: inherit;
-    }
+  #mapKasus {
+    height: 65vh;
+    min-height: 480px;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+    z-index: 0;
+  }
+  .leaflet-container {
+    font-family: inherit;
+    background-color: #f9fafb;
+  }
+  .leaflet-popup-content {
+    margin: 0.75rem;
+  }
+  .leaflet-popup-content-wrapper {
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e5e7eb;
+  }
+  .custom-marker svg {
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+  }
 </style>
 @endpush
 
 @section('content')
-<div class="max-w-4xl mx-auto px-4 py-8">
-    <div class="mb-7">
-        <h2 class="text-2xl font-semibold tracking-tight mb-2">Peta Sebaran Kasus</h2>
-        <p class="text-gray-500 text-sm">Visualisasi lokasi kasus kesehatan di Indonesia</p>
+<div class="max-w-6xl mx-auto px-4 py-8">
+  <section class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div class="p-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800">Peta Sebaran Kasus</h2>
+          <p class="text-sm text-gray-500 mt-1">
+            Visualisasi geografis kasus kesehatan per wilayah
+          </p>
+        </div>
+        <div class="mt-3 sm:mt-0 bg-emerald-50 text-emerald-800 px-3 py-1 rounded-full text-xs">
+          <span class="font-medium">Layer:</span> OpenStreetMap
+        </div>
+      </div>
+
+      <div id="mapKasus" class="mt-4"></div>
+
+      <div class="flex flex-wrap gap-4 mt-6 text-sm">
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full">
+          <span class="inline-block h-3 w-3 rounded-full bg-red-500"></span>
+          <span class="text-gray-700">Tinggi (>100 kasus)</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full">
+          <span class="inline-block h-3 w-3 rounded-full bg-yellow-400"></span>
+          <span class="text-gray-700">Sedang (50-100 kasus)</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full">
+          <span class="inline-block h-3 w-3 rounded-full bg-green-500"></span>
+          <span class="text-gray-700">Rendah (<50 kasus)</span>
+        </div>
+      </div>
     </div>
-    <div id="mapKasus"></div>
-    <div class="flex items-center gap-6 mt-6 text-sm text-gray-600">
-        <div class="flex items-center gap-2">
-            <span class="inline-block h-3 w-3 rounded-full bg-red-500"></span>
-            Tinggi
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="inline-block h-3 w-3 rounded-full bg-yellow-400"></span>
-            Sedang
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="inline-block h-3 w-3 rounded-full bg-green-500"></span>
-            Rendah
-        </div>
-    </div>
+  </section>
 </div>
 @endsection
 
 @push('scripts')
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Inisialisasi Map
-    const map = L.map('mapKasus').setView([-2.5489, 118.0149], 5);
+  const rawCases = @json($cases);
 
-    // Tile layer light
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19
-    }).addTo(map);
+  // Initialize map with better default view
+  const map = L.map('mapKasus', {
+    preferCanvas: true,
+    zoomControl: false
+  }).setView([-2.5489, 118.0149], 5);
 
-    // Custom Icon Generator
-    function markerIcon(color) {
-        return L.divIcon({
-            className: 'custom-marker',
-            html: `
-                <svg width="28" height="28" viewBox="0 0 32 32">
-                    <circle cx="16" cy="16" r="12" fill="${color}" stroke="#fff" stroke-width="2"/>
-                </svg>
-            `,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
-            popupAnchor: [0, -16]
-        });
-    }
+  // Add zoom control with better position
+  L.control.zoom({
+    position: 'topright'
+  }).addTo(map);
 
-    // Data Marker Dummy (Ganti dengan data dinamis jika ada)
-    const locations = [
-        { name: 'RS Jakarta', coords: [-6.2088, 106.8456], kasus: 110, level: 'tinggi', color: '#ef4444' },
-        { name: 'RS Bandung', coords: [-6.9175, 107.6191], kasus: 75, level: 'sedang', color: '#f59e0b' },
-        { name: 'RS Surabaya', coords: [-7.2575, 112.7521], kasus: 40, level: 'rendah', color: '#10b981' }
-    ];
+  // Add tile layer with retina support
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+    detectRetina: true
+  }).addTo(map);
 
-    locations.forEach(l => {
-        const m = L.marker(l.coords, { icon: markerIcon(l.color) }).addTo(map);
-        m.bindPopup(`
-            <div class="font-sans" style="min-width:150px;">
-                <strong>${l.name}</strong>
-                <div class="flex items-center mb-1">
-                    <span class="inline-block h-2 w-2 rounded-full mr-2" style="background:${l.color}"></span>
-                    <span class="capitalize text-xs">${l.level}</span>
-                </div>
-                <div class="text-xs text-gray-700">Jumlah kasus: <span class="font-semibold">${l.kasus}</span></div>
-            </div>
-        `);
+  // Marker clustering would be better here, but using simple markers for demo
+  function getCaseLevel(count) {
+    return count > 100
+      ? { level: 'Tinggi', color: '#ef4444', className: 'high-cluster' }
+      : count > 50
+        ? { level: 'Sedang', color: '#f59e0b', className: 'medium-cluster' }
+        : { level: 'Rendah', color: '#10b981', className: 'low-cluster' };
+  }
+
+  // Create markers
+  rawCases.forEach(caseData => {
+    const { level, color, className } = getCaseLevel(caseData.count);
+
+    const icon = L.divIcon({
+      className: `custom-marker ${className}`,
+      html: `
+        <svg width="32" height="32" viewBox="0 0 32 32">
+          <circle cx="16" cy="16" r="12" fill="${color}" stroke="#fff" stroke-width="2"/>
+          <text x="16" y="20" font-size="10" text-anchor="middle" fill="white" font-weight="bold">
+            ${caseData.count}
+          </text>
+        </svg>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16]
     });
 
-    // Responsive map fix if needed
-    setTimeout(() => { map.invalidateSize(); }, 300);
+    const marker = L.marker([caseData.lat, caseData.lng], { icon })
+      .addTo(map)
+      .bindPopup(`
+        <div class="min-w-[180px]">
+          <h4 class="font-semibold text-gray-800">${caseData.region}</h4>
+          <p class="text-sm text-gray-600">${caseData.disease}</p>
+          <div class="flex items-center mt-2">
+            <span class="inline-block w-2 h-2 rounded-full mr-2" style="background:${color}"></span>
+            <span class="text-sm font-medium">${level}</span>
+          </div>
+          <div class="mt-1 text-sm text-gray-700">
+            Total Kasus: <span class="font-semibold">${caseData.count}</span>
+          </div>
+          ${caseData.last_reported ? `
+          <div class="mt-1 text-xs text-gray-500">
+            Terakhir dilaporkan: ${new Date(caseData.last_reported).toLocaleDateString()}
+          </div>` : ''}
+        </div>
+      `);
+
+    marker.on('mouseover', function() {
+      this.openPopup();
+    });
+  });
+
+  // Adjust map after load
+  setTimeout(() => {
+    map.invalidateSize();
+    if (rawCases.length > 0) {
+      const markerGroup = new L.featureGroup(
+        rawCases.map(c => L.latLng(c.lat, c.lng))
+      );
+      map.fitBounds(markerGroup.getBounds().pad(0.2));
+    }
+  }, 100);
 });
 </script>
 @endpush

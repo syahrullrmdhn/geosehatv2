@@ -1,8 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\{
     AlertController,
+    AlertThresholdController,
     ApiController,
     AnalyticsController,
     AuditController,
@@ -19,42 +21,67 @@ use App\Http\Controllers\{
     ReportController,
     RoleController,
     SecurityController,
+    TwoFactorController,
     UserController,
     WebhookController,
     AuthController,
 };
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/', fn() => redirect()->route('dashboard'));
 
+// Public test endpoint for Telegram debugging
+Route::get('/test-telegram', function () {
+    $token  = config('app.telegram_bot_token', 'YOUR_TELEGRAM_BOT_TOKEN'); // or use env()
+    $chatId = 1102209151; // Ganti dengan chat ID-mu
+
+    $response = Http::asForm()
+        ->timeout(5)
+        ->post("https://api.telegram.org/bot{$token}/sendMessage", [
+            'chat_id' => $chatId,
+            'text'    => '🔔 Ini pesan tes dari Laravel!',
+        ]);
+
+    return response()->json([
+        'status' => $response->status(),
+        'body'   => $response->body(),
+    ]);
+})->name('test.telegram');
+
 Route::middleware('auth')->group(function () {
-    // Authentication
+    // Logout
     Route::post('logout', [AuthController::class, 'destroy'])->name('logout');
 
     // Profile
     Route::get   ('profile',  [ProfileController::class, 'edit'])   ->name('profile.edit');
-    Route::patch ('profile',  [ProfileController::class, 'update']) ->name('profile.update');
+    Route::patch ('profile',  [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('profile',  [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Cases
-    Route::resource('cases', CaseRecordController::class)
-         ->only(['index', 'create', 'store']);
-    Route::get('cases/map', [CaseRecordController::class, 'map'])
-         ->name('cases.map');
+    // Cases (map sebelum resource agar /cases/map tidak tertimpa)
+    Route::get('cases/map', [CaseRecordController::class, 'map'])->name('cases.map');
+    Route::resource('cases', CaseRecordController::class);
 
-    // Alerts
-    Route::get('alerts/threshold', [AlertController::class, 'threshold'])
-         ->name('alerts.threshold');
+    // Threshold Alerts Resource
+    Route::resource('alerts/threshold', AlertThresholdController::class, [
+        'as' => 'alerts' // prefix route name: alerts.threshold.*
+    ]);
 
     // Notifications
-    Route::get ('notifications',           [NotificationController::class, 'index'])   ->name('notifications.index');
+    Route::get ('notifications',           [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 
     // Reports & Exports
-    Route::get('reports/export',    [ReportController::class, 'export'])   ->name('reports.export');
-    Route::get('reports/scheduled', [ReportController::class, 'scheduled'])->name('reports.scheduled');
+    Route::get('reports/export',        [ReportController::class, 'export'])   ->name('reports.export');
+    Route::get('reports/scheduled',     [ReportController::class, 'scheduled'])->name('reports.scheduled');
+    Route::get('reports/download/{id}', [ReportController::class, 'download'])->name('reports.download');
 
     // Analytics
     Route::get('analytics/trends',     [AnalyticsController::class, 'trends'])    ->name('analytics.trends');
@@ -62,34 +89,26 @@ Route::middleware('auth')->group(function () {
     Route::get('analytics/predictive', [AnalyticsController::class, 'predictive'])->name('analytics.predictive');
 
     // Master Data
-    Route::get('diseases', [DiseaseController::class, 'index'])->name('diseases.index');
-    Route::get('regions',  [RegionController::class, 'index'])->name('regions.index');
+    Route::resource('diseases', DiseaseController::class)->except(['show']);
+    Route::resource('regions',  RegionController::class) ->except(['show']);
 
-    // ==== PENTING: Pakai resource dengan UNDERSCORE, BUKAN DASH ====
+    // Health Workers
     Route::resource('health_workers', HealthWorkerController::class);
 
     // User Management
     Route::resource('users', UserController::class)->except(['show']);
 
-    // Roles & Security
-    Route::get('roles',       [RoleController::class, 'index'])     ->name('roles.index');
-    Route::get('security/2fa',[SecurityController::class,'twoFactor'])->name('security.2fa');
-
-    // API & Webhooks
-    Route::get('api/docs',  [ApiController::class, 'docs'])   ->name('api.docs');
-    Route::get('webhooks',  [WebhookController::class, 'index'])->name('webhooks.index');
-
-    // PWA & Offline
-    Route::get('pwa/settings',[PwaController::class, 'settings'])->name('pwa.settings');
-    Route::get('pwa/offline', [PwaController::class, 'offlineSync'])->name('pwa.offline');
-
-    // System: Audit, Backup, Privacy
-    Route::get('audit',   [AuditController::class, 'index'])->name('audit.index');
-    Route::get('backup',  [BackupController::class,'index'])->name('backup.index');
-    Route::get('privacy', [PrivacyController::class,'index'])->name('privacy.index');
-
-    Route::resource('roles', \App\Http\Controllers\RoleController::class);
-
+    // Security: 2FA Settings
+    Route::get ('security/2fa',        [SecurityController::class, 'twoFactor'])    ->name('security.2fa');
+    Route::post('security/2fa/enable', [SecurityController::class, 'enable2fa'])   ->name('security.2fa.enable');
+    Route::post('security/2fa/disable',[SecurityController::class, 'disable2fa'])  ->name('security.2fa.disable');
 });
 
+// Two‑Factor Verification (accessible without full auth)
+Route::get ('2fa', [TwoFactorController::class, 'showVerifyForm'])
+     ->name('2fa.verify');
+Route::post('2fa', [TwoFactorController::class, 'verify'])
+     ->name('2fa.verify.post');
+
+// Breeze/Laravel auth routes
 require __DIR__ . '/auth.php';

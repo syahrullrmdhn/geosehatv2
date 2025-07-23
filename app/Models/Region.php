@@ -3,7 +3,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Region extends Model
+class Region extends LoggableModel
 {
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'description'];
+    protected static $logName = 'wilayah';
 }

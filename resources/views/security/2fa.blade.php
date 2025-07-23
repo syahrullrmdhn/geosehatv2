@@ -2,38 +2,32 @@
 @section('title','Two-Factor Authentication')
 
 @section('content')
-<div class="w-full max-w-lg mx-auto py-6">
-    <h2 class="text-2xl font-semibold mb-4">Two-Factor Authentication</h2>
-    <div class="bg-white border border-gray-200 rounded-lg p-6">
-        {{-- Placeholder status & aksi --}}
-        <div class="mb-5">
-            <p class="text-gray-700 mb-1">Status: 
-                <span class="font-medium text-gray-900">
-                    {{-- Ganti sesuai logic 2FA --}}
-                    Tidak Aktif
-                </span>
-            </p>
-            <p class="text-gray-500 text-sm">Two-Factor Authentication menambah keamanan akun Anda dengan meminta kode OTP setiap login.</p>
-        </div>
-        <form>
-            {{-- Jika belum aktif --}}
-            <button type="button"
-                class="px-5 py-2 border border-gray-300 rounded-md text-gray-700 font-medium text-sm hover:bg-gray-50 transition">
-                Aktifkan 2FA
-            </button>
+<div class="max-w-md mx-auto py-6">
+  <h2 class="text-2xl font-semibold mb-4">Two-Factor Authentication</h2>
+  @if(session('success'))
+    <div class="mb-4 p-3 bg-green-100 text-green-700">{{ session('success') }}</div>
+  @endif
+  <div class="bg-white border rounded p-6">
+    <p>Status: <strong>{{ $user->two_factor_enabled ? 'Aktif' : 'Tidak Aktif' }}</strong></p>
+    <p class="text-sm text-gray-500 mb-4">2FA mengirimkan kode via Telegram setiap login.</p>
 
-            {{-- Jika sudah aktif, tampilkan tombol disable & (optional) QR code --}}
-            {{-- 
-            <div class="mb-4">
-                <img src="URL_QR_CODE" alt="Scan QR" class="h-32 w-32 mx-auto mb-2 rounded">
-                <p class="text-xs text-center text-gray-500">Scan kode ini di aplikasi autentikator Anda.</p>
-            </div>
-            <button type="button"
-                class="px-5 py-2 border border-gray-300 rounded-md text-gray-700 font-medium text-sm hover:bg-gray-50 transition">
-                Nonaktifkan 2FA
-            </button>
-            --}}
-        </form>
-    </div>
+    @if(!$user->two_factor_enabled)
+      <form method="POST" action="{{ route('security.2fa.enable') }}" class="space-y-4">
+        @csrf
+        <label>
+          <span class="text-sm">Telegram Chat ID</span>
+          <input type="text" name="chat_id" value="{{ old('chat_id') }}"
+                 class="mt-1 block w-full border rounded p-2">
+        </label>
+        @error('chat_id')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Aktifkan 2FA</button>
+      </form>
+    @else
+      <form method="POST" action="{{ route('security.2fa.disable') }}">
+        @csrf
+        <button type="submit" class="px-4 py-2 border rounded">Nonaktifkan 2FA</button>
+      </form>
+    @endif
+  </div>
 </div>
 @endsection
